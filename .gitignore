@@ -38,3 +38,6 @@ npm-debug.log*
 dist/
 .turbo/
 *.tsbuildinfo
+
+# Monid cost ledger (runtime artifact)
+.monid-costs.jsonl
