@@ -15,18 +15,21 @@ import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
  * escalate only when a task demonstrably needs more.
  */
 export const MODELS = {
-  // ~ $0.02 / 1M input tokens — default workhorse
+  // Reliable, cheap tool-caller with reasoning — the lab default/workhorse (~$0.039/1M in).
+  workhorse: "openai/gpt-oss-120b",
+  // ultra-cheap; fine for simple/no-tool agents, weak at multi-step tool use
   cheap: "meta-llama/llama-3.1-8b-instruct",
-  // small + cheap, good tool-calling
   small: "qwen/qwen-2.5-7b-instruct",
-  // stronger reasoning / coding when cheap fails
+  // stronger reasoning when the workhorse struggles
   strong: "qwen/qwen3-next-80b-a3b-instruct",
   coder: "openai/gpt-oss-120b",
   // vision-capable
   vision: "qwen/qwen-2.5-vl-7b-instruct",
 };
 
-export const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || MODELS.cheap;
+// Default to a reliable tool-caller. llama-3.1-8b is too weak for multi-step tool use
+// (it asks clarifying questions / guesses), so the lab default is gpt-oss-120b.
+export const DEFAULT_MODEL = process.env.OPENROUTER_MODEL || MODELS.workhorse;
 
 /**
  * Build a configured OpenRouter provider instance.
