@@ -14,9 +14,9 @@ Running log for the eve agent lab. Newest entries on top.
   - ✅ @lab/superserve-backend: custom eve SandboxBackend; live proof incl. durable pause→reconnect→FS resume.
   - ✅ @lab/monid-tools: discover/inspect/run tools + budget guard + cost ledger. Live discover proof.
   - ✅ get_weather tool round-trips over the HTTP API (NDJSON stream + durable follow-up).
-- 🟡 Phase 2 — 20-archetype matrix. DONE & live-tested: 01 data-analyst, 02 web-research, 03 coding, 04 pdf-qa, 05 sql, 06 multi-tool, 07 subagents, 08 HITL, 09 cron, 11 durable-resume, 12 MCP, 13 OpenAPI, 14 codebase. TODO: 10 slack, 15 ETL, 16 eval-self, 17 sentiment, 18 RAG, 19 web-ui, 20 swarm (+extras).
-- ⬜ Phase 3 — Evals & robustness
-- ⬜ Phase 4 — Deliverables (README, FINDINGS, reproducibility)
+- ✅ Phase 2 — 22 archetypes (01-20 + 21 skills + 22 security), each built, live-tested, and committed with a run.log.
+- ✅ Phase 3 — Evals (weather, multi-tool: all gates pass) + robustness (budget cap, provider error, sandbox-crash recovery, durable resume: all PASS).
+- ✅ Phase 4 — README.md (archetype index), FINDINGS.md, .env.example, scripts/setup.sh. Fresh-clone reproducibility verified.
 
 ## Decisions taken (autonomous, per user's "use your wisdom")
 1. **Layout:** single npm-workspaces monorepo in `/workspace` (hoist one node_modules; each archetype still its own dir/project).
