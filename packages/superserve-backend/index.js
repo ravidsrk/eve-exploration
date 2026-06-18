@@ -102,6 +102,10 @@ export function superserveBackend(opts = {}) {
         await sandbox.commands.run("mkdir -p /workspace");
       }
 
+      console.error(
+        `[superserve] session=${input.sessionKey} sandbox=${sandbox.id} reconnected=${reconnected}`,
+      );
+
       const session = buildSuperserveSession(sandbox, input.sessionKey, async (policy) => {
         await sandbox.update({ network: mapNetwork(policy) });
       });
