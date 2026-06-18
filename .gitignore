@@ -5,6 +5,7 @@
 *.key
 *.pem
 secrets/
+.secrets/
 /home/ubuntu/.eve_lab_env
 
 # Dependencies

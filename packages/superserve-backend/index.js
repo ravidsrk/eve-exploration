@@ -11,16 +11,24 @@
 // See RESEARCH.md ("SuperServe integration") and scratchpad for the design.
 
 import { Sandbox } from "@superserve/sdk";
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import path from "node:path";
 import { buildSuperserveSession } from "./session.js";
 
 const BACKEND_NAME = "superserve";
 
-// prewarm runs at build time; create runs at runtime. In `eve dev` both happen in
-// one process, so we stash bootstrap/seed work here and replay it on first create.
-// (SuperServe 0.7.4's TS SDK exposes fromTemplate/fromSnapshot but no snapshot-create
-// from files, so eve's build-time template/seed mechanism doesn't map cleanly — we
-// seed per-session instead. Documented as a sharp edge in FINDINGS.md.)
-const prewarmStore = new Map();
+// eve runs `prewarm` (build process) and `create` (Nitro worker) in SEPARATE processes,
+// so an in-memory Map can't carry seed files between them. We persist seed files to disk
+// under the app root (available to both phases via runtimeContext.appRoot) and replay them
+// into the SuperServe VM on first create.
+//
+// NOTE (sharp edge, see FINDINGS.md): SuperServe 0.7.4's TS SDK has no snapshot-create-from-
+// files, so eve's build-time template baking doesn't map cleanly. We seed per-session at
+// first create instead. `bootstrap(...)` *functions* can't cross the build/runtime process
+// split (a function isn't serializable); use seed files or the sandbox `onSession` hook.
+function seedFilePath(appRoot, templateKey) {
+  return path.join(appRoot, ".eve", "superserve-seed", `${templateKey}.json`);
+}
 
 function mapNetwork(policy) {
   if (!policy || policy === "allow-all") return undefined;
@@ -52,11 +60,16 @@ export function superserveBackend(opts = {}) {
     name: BACKEND_NAME,
 
     async prewarm(input) {
-      prewarmStore.set(input.templateKey, {
-        bootstrap: input.bootstrap,
-        seedFiles: input.seedFiles ?? [],
-      });
-      input.log?.(`superserve: captured prewarm for template ${input.templateKey} (seeded at first create)`);
+      const seedFiles = (input.seedFiles ?? []).map((f) => ({
+        path: f.path,
+        // base64 so both text and binary seed files round-trip safely
+        b64: Buffer.from(typeof f.content === "string" ? Buffer.from(f.content) : f.content).toString("base64"),
+      }));
+      const appRoot = input.runtimeContext?.appRoot ?? process.cwd();
+      const dest = seedFilePath(appRoot, input.templateKey);
+      mkdirSync(path.dirname(dest), { recursive: true });
+      writeFileSync(dest, JSON.stringify({ seedFiles }));
+      input.log?.(`superserve: persisted ${seedFiles.length} seed file(s) for template ${input.templateKey}`);
       return { reused: false };
     },
 
@@ -93,18 +106,14 @@ export function superserveBackend(opts = {}) {
         await sandbox.update({ network: mapNetwork(policy) });
       });
 
-      // Seed + bootstrap on first creation of a fresh VM (not on reconnect).
-      if (!reconnected) {
-        const stored = input.templateKey ? prewarmStore.get(input.templateKey) : undefined;
-        if (stored) {
-          if (typeof stored.bootstrap === "function") {
-            await stored.bootstrap({ use: async () => session });
-          }
-          for (const f of stored.seedFiles) {
-            await session.writeTextFile({
-              path: f.path,
-              content: typeof f.content === "string" ? f.content : Buffer.from(f.content).toString("utf-8"),
-            });
+      // Seed on first creation of a fresh VM (not on reconnect — /workspace persists).
+      if (!reconnected && input.templateKey) {
+        const appRoot = input.runtimeContext?.appRoot ?? process.cwd();
+        const src = seedFilePath(appRoot, input.templateKey);
+        if (existsSync(src)) {
+          const { seedFiles } = JSON.parse(readFileSync(src, "utf-8"));
+          for (const f of seedFiles) {
+            await session.writeBinaryFile({ path: f.path, content: Buffer.from(f.b64, "base64") });
           }
         }
       }
